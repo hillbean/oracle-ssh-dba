@@ -9,7 +9,7 @@ description: >-
 # Oracle SSH DBA
 
 本机通常没有 sqlplus。默认路径是：**Windows 工作机 → SSH 到 Linux → `su - oracle` → sqlplus/RMAN**。
-不要在本机装 Oracle 客户端，也不要把密码打进聊天或命令行。
+不要在本机装 Oracle 客户端，也不要把密码打进聊天或命令行。安装与命令说明见 [README.md](README.md)。
 
 执行前先读本文件。查型号读 [references/inspect.md](references/inspect.md)；备份读 [references/backup.md](references/backup.md)；还原读 [references/restore.md](references/restore.md)；连接配置读 [references/connections.md](references/connections.md)。
 

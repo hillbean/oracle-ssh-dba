@@ -1,0 +1,13 @@
+# Local connection secrets — never commit
+connections.json
+*.pass
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
