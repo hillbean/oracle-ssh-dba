@@ -2,19 +2,15 @@
 # Data Pump export. Run as oracle.
 set -euo pipefail
 
-: "${ORACLE_SID:?}"
-: "${ORACLE_HOME:?}"
+. "$(dirname "$0")/oracle_env.sh"
 : "${BACKUP_ROOT:?}"
 DATE_TAG="${DATE_TAG:-$(date +%Y%m%d_%H%M%S)}"
 SCHEMAS="${SCHEMAS:-}"
 FULL="${FULL:-0}"
 DUMP_DIR_NAME="${DUMP_DIR_NAME:-ORA_SSH_DP}"
 
-export ORACLE_SID ORACLE_HOME
-export PATH="$ORACLE_HOME/bin:$PATH"
-
 STAGE="${BACKUP_ROOT}/datapump/${DATE_TAG}"
-LOG_DIR="${LOG_DIR:-/home/oracle/scripts/logs}"
+LOG_DIR="${LOG_DIR}"
 mkdir -p "$STAGE" "$LOG_DIR"
 LOG_FILE="${LOG_DIR}/ora_ssh_dp_${DATE_TAG}.log"
 DUMPFILE="exp_${DATE_TAG}.dmp"

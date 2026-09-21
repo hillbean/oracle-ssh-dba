@@ -2,20 +2,18 @@
 # Online RMAN incremental backup (LEVEL 0 or 1). Run as oracle. Does NOT delete obsolete files.
 set -euo pipefail
 
-: "${ORACLE_SID:?}"
-: "${ORACLE_HOME:?}"
+. "$(dirname "$0")/oracle_env.sh"
 : "${BACKUP_ROOT:?}"
 LEVEL="${LEVEL:-0}"
 TAG_PREFIX="${TAG_PREFIX:-ORA_SSH_L${LEVEL}}"
 DATE_TAG="${DATE_TAG:-$(date +%Y%m%d_%H%M%S)}"
 COPY_ARCH="${COPY_ARCH:-1}"
 
-export ORACLE_SID ORACLE_HOME
 export PATH="$ORACLE_HOME/bin:$PATH"
 
 BACKUP_SET_DIR="${BACKUP_ROOT}/${DATE_TAG}"
 ARCH_STAGE="${BACKUP_ROOT}/${DATE_TAG}_archivelog"
-LOG_DIR="${LOG_DIR:-/home/oracle/scripts/logs}"
+LOG_DIR="${LOG_DIR}"
 mkdir -p "$BACKUP_SET_DIR" "$ARCH_STAGE" "$LOG_DIR"
 LOG_FILE="${LOG_DIR}/ora_ssh_l${LEVEL}_${DATE_TAG}.log"
 TAG_FILE="${LOG_DIR}/ora_ssh_backup_latest.tag"

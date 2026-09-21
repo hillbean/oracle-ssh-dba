@@ -3,8 +3,7 @@
 # One RMAN session: spfile + controlfile + catalog + restore + recover [+ resetlogs].
 set -euo pipefail
 
-: "${ORACLE_SID:?}"
-: "${ORACLE_HOME:?}"
+. "$(dirname "$0")/oracle_env.sh"
 : "${BACKUP_SET_DIR:?}"
 : "${DBID:?}"
 ARCH_DIR="${ARCH_DIR:-}"
@@ -12,9 +11,6 @@ UNTIL_SEQUENCE="${UNTIL_SEQUENCE:-}"
 OPEN_RESETLOGS="${OPEN_RESETLOGS:-1}"
 LISTENER_HOST="${LISTENER_HOST:-}"
 LISTENER_PORT="${LISTENER_PORT:-1521}"
-
-export ORACLE_SID ORACLE_HOME
-export PATH="$ORACLE_HOME/bin:$PATH"
 
 CTL=$(ls -1 ${BACKUP_SET_DIR}/controlfile_*.bkp 2>/dev/null | head -1 || true)
 SPF=$(ls -1 ${BACKUP_SET_DIR}/spfile_*.bkp 2>/dev/null | head -1 || true)
@@ -24,7 +20,7 @@ if [ -z "$CTL" ] || [ -z "$SPF" ]; then
   exit 2
 fi
 
-LOG_DIR="${LOG_DIR:-/home/oracle/scripts/logs}"
+LOG_DIR="${LOG_DIR}"
 DATE_TAG="${DATE_TAG:-$(date +%Y%m%d_%H%M%S)}"
 mkdir -p "$LOG_DIR"
 LOG_FILE="${LOG_DIR}/ora_ssh_restore_${DATE_TAG}.log"

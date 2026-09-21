@@ -60,18 +60,14 @@ python $env:USERPROFILE\.cursor\skills\oracle-ssh-dba\scripts\ora_ssh.py init-co
       "role": "source",
       "ssh_user": "root",
       "ssh_pass_file": "C:/Users/you/ssh.pass",
-      "oracle_sid": "orcl",
-      "oracle_home": "/u01/app/oracle/product/19.0.0/dbhome_1",
-      "backup_root": "/home/oracle/backup/full"
+      "oracle_sid": "orcl"
     },
     "backup-database": {
       "host": "db-backup.example.com",
       "role": "backup",
       "ssh_user": "root",
       "ssh_pass_file": "C:/Users/you/ssh.pass",
-      "oracle_sid": "orcl",
-      "oracle_home": "/u01/app/oracle/product/19.0.0/dbhome_1",
-      "backup_root": "/home/oracle/backup/from_source"
+      "oracle_sid": "orcl"
     }
   }
 }
@@ -80,8 +76,10 @@ python $env:USERPROFILE\.cursor\skills\oracle-ssh-dba\scripts\ora_ssh.py init-co
 | 字段 | 说明 |
 |------|------|
 | `host` | 主机名或 IP |
-| `role` | `source` 禁止清表；`backup` 还原前默认清业务表 |
+| `role` | `source` 禁止清表，备份目录为 oracle 用户下 `backup/full`；`backup` 还原前清表，目录为 `backup/from_source` |
 | `ssh_pass_file` | 一行密码的文本文件（UTF-8）。也可改用 `ssh_key` |
+
+不要填写 `oracle_home`、`backup_root`。登录服务器后从 oratab 确认 `ORACLE_HOME`，备份路径按角色自动拼到 oracle 用户家目录。
 
 密码文件示例（只有一行，不要提交）：
 

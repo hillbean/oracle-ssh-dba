@@ -10,7 +10,14 @@
 python ora_ssh.py init-config
 ```
 
-已存在则不覆盖。`--force` 才重写。环境变量 `ORACLE_SSH_CONFIG` 可改路径。把示例主机名/IP 改成你的实际环境。
+已存在则不覆盖。`--force` 才重写。把示例主机名改成你的实际环境。
+
+**不要填 `oracle_home`、`backup_root`。** 登录后自动确认：
+
+- `ORACLE_HOME`：oratab / pmon / sqlplus
+- 备份目录：oracle 用户家目录下
+  - 源库 `role=source` → `$HOME/backup/full`
+  - 备份库 `role=backup` → `$HOME/backup/from_source`
 
 ```json
 {
@@ -21,33 +28,28 @@ python ora_ssh.py init-config
       "ssh_user": "root",
       "ssh_port": 22,
       "ssh_pass_file": "C:/Users/you/ssh.pass",
-      "oracle_sid": "orcl",
-      "oracle_home": "/u01/app/oracle/product/19.0.0/dbhome_1",
-      "oracle_user": "oracle",
-      "backup_root": "/home/oracle/backup/full"
+      "oracle_sid": "orcl"
     },
     "backup-database": {
-      "host": "192.0.2.20",
+      "host": "db-backup.example.com",
       "role": "backup",
       "ssh_user": "root",
       "ssh_pass_file": "C:/Users/you/ssh.pass",
-      "oracle_sid": "orcl",
-      "oracle_home": "/u01/app/oracle/product/19.0.0/dbhome_1",
-      "backup_root": "/home/oracle/backup/from_source"
+      "oracle_sid": "orcl"
     }
   }
 }
 ```
 
-`host` 可以是主机名（如 `db-source.example.com`）或 IP（文档示例网段 `192.0.2.0/24`，例如 `192.0.2.10`）。
+`host` 可以是主机名或 IP（文档示例网段 `192.0.2.0/24`）。
 
 | 字段 | 说明 |
 |------|------|
-| `role` | `source` 禁止清表；`backup` 还原前默认清业务表 |
+| `role` | `source` 禁止清表、备份写到 `backup/full`；`backup` 还原前清表、目录为 `backup/from_source` |
 | `ssh_pass_file` | 一行密码，UTF-8。与 `ssh_key` 二选一 |
 | `ssh_key` | 私钥路径 |
 | `oracle_user` | 默认 `oracle`。SSH 若已是 oracle，不再 `su` |
-| `backup_root` | RMAN/Data Pump 根目录 |
+| `oracle_sid` | 多实例时填写；单实例可省略，登录后从 pmon 探测 |
 
 命令行 `--host/--user/--pass-file/--sid` 会覆盖 profile。
 

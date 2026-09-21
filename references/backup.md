@@ -32,7 +32,7 @@ python ora_ssh.py backup --profile source-database --type datapump --schemas SCO
 python ora_ssh.py backup --profile source-database --type datapump --full
 ```
 
-脚本会 `CREATE OR REPLACE DIRECTORY` 指向 `backup_root/datapump/<TAG>/`，再 `expdp "/ as sysdba"`。
+脚本会 `CREATE OR REPLACE DIRECTORY` 指向 `~oracle/backup/full/datapump/<TAG>/`（源库）或 `~oracle/backup/from_source/datapump/<TAG>/`（备份库），再 `expdp "/ as sysdba"`。
 
 适合搬用户、对照环境灌数。不能替代 RMAN 做介质恢复。
 

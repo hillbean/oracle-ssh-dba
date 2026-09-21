@@ -2,8 +2,7 @@
 # Data Pump import. DESTRUCTIVE for target schemas. Run as oracle.
 set -euo pipefail
 
-: "${ORACLE_SID:?}"
-: "${ORACLE_HOME:?}"
+. "$(dirname "$0")/oracle_env.sh"
 : "${DUMP_PATH:?}"
 DUMP_DIR_NAME="${DUMP_DIR_NAME:-ORA_SSH_DP}"
 SCHEMAS="${SCHEMAS:-}"
@@ -11,13 +10,10 @@ FULL="${FULL:-0}"
 TABLE_EXISTS="${TABLE_EXISTS:-SKIP}"
 REMAP_SCHEMA="${REMAP_SCHEMA:-}"
 
-export ORACLE_SID ORACLE_HOME
-export PATH="$ORACLE_HOME/bin:$PATH"
-
 STAGE=$(dirname "$DUMP_PATH")
 DUMPFILE=$(basename "$DUMP_PATH")
 DATE_TAG="${DATE_TAG:-$(date +%Y%m%d_%H%M%S)}"
-LOG_DIR="${LOG_DIR:-/home/oracle/scripts/logs}"
+LOG_DIR="${LOG_DIR}"
 mkdir -p "$STAGE" "$LOG_DIR"
 LOG_FILE="${LOG_DIR}/ora_ssh_impdp_${DATE_TAG}.log"
 DPLOG="imp_${DATE_TAG}.log"

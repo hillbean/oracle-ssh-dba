@@ -106,9 +106,11 @@ python ...\ora_ssh.py oracle --profile <name> "echo SID=\$ORACLE_SID"
 
 ## 示例连接（请改成实际环境）
 
-| 角色 | profile | 主机名 | 示例 IP | SID | ORACLE_HOME |
-|------|---------|--------|---------|-----|-------------|
-| 源库 / 生产库 | `source-database` | `db-source.example.com` | 192.0.2.10 | orcl | `/u01/app/oracle/product/19.0.0/dbhome_1` |
-| 备份库 / 对照库 | `backup-database` | `db-backup.example.com` | 192.0.2.20 | orcl | 同上 |
+| 角色 | profile | 主机名 | 示例 IP | SID |
+|------|---------|--------|---------|-----|
+| 源库 / 生产库 | `source-database` | `db-source.example.com` | 192.0.2.10 | orcl |
+| 备份库 / 对照库 | `backup-database` | `db-backup.example.com` | 192.0.2.20 | orcl |
+
+`ORACLE_HOME` 登录后从 oratab/pmon 探测。备份目录在 oracle 用户家目录下自动拼：源库 `backup/full`，备份库 `backup/from_source`。不要让用户填这两项。
 
 SSH 账号一般是 `root`，再 `su - oracle`。本机无 sqlplus、有 OpenSSH；用 paramiko 走密码文件。

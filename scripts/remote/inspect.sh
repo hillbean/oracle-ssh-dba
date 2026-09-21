@@ -1,56 +1,26 @@
 #!/bin/bash
 # Print Oracle identity in KEY=value lines. Run as oracle (login env).
 set -u
-ORATAB=""
-if [ -f /etc/oratab ]; then
-  ORATAB=/etc/oratab
-elif [ -f /var/opt/oracle/oratab ]; then
-  ORATAB=/var/opt/oracle/oratab
-fi
+. "$(dirname "$0")/oracle_env.sh"
 
 list_sids() {
-  if [ -n "$ORATAB" ]; then
+  if [ -n "${ORATAB:-}" ]; then
     awk -F: '!/^#/ && NF>=2 && $1!="" {print $1":"$2}' "$ORATAB"
   fi
 }
 
-if [ -z "${ORACLE_SID:-}" ]; then
-  # Prefer a running pmon, else first oratab entry.
-  PMON_SID=$(ps -ef | awk '/[o]ra_pmon_/ {sub(/.*ora_pmon_/,""); print; exit}')
-  if [ -n "$PMON_SID" ]; then
-    ORACLE_SID=$PMON_SID
-  elif [ -n "$ORATAB" ]; then
-    ORACLE_SID=$(awk -F: '!/^#/ && NF>=2 && $1!="" {print $1; exit}' "$ORATAB")
-  fi
-fi
-
-if [ -z "${ORACLE_HOME:-}" ] && [ -n "$ORATAB" ] && [ -n "${ORACLE_SID:-}" ]; then
-  ORACLE_HOME=$(awk -F: -v sid="$ORACLE_SID" '!/^#/ && $1==sid {print $2; exit}' "$ORATAB")
-fi
-
-if [ -z "${ORACLE_SID:-}" ] || [ -z "${ORACLE_HOME:-}" ]; then
-  echo "ERROR=cannot resolve ORACLE_SID/ORACLE_HOME"
-  echo "ORATAB=${ORATAB:-missing}"
-  echo "---- oratab ----"
-  list_sids
-  echo "---- pmon ----"
-  ps -ef | grep -E '[o]ra_pmon_|[t]nslsnr' || true
-  exit 2
-fi
-
-export ORACLE_SID ORACLE_HOME
-export PATH="$ORACLE_HOME/bin:$PATH"
-
 echo "HOST=$(hostname)"
 echo "ORACLE_SID=$ORACLE_SID"
 echo "ORACLE_HOME=$ORACLE_HOME"
+echo "ORACLE_USER_HOME=$ORACLE_USER_HOME"
+echo "BACKUP_ROOT=$BACKUP_ROOT"
 echo "ORATAB=${ORATAB:-none}"
 echo "---- oratab ----"
 list_sids
 echo "---- processes ----"
 ps -ef | grep -E "[o]ra_pmon_${ORACLE_SID}|[t]nslsnr" || echo "NO_PMON_OR_LISTENER"
 echo "---- df ----"
-df -h / "$ORACLE_HOME" /home/oracle 2>/dev/null | awk 'NR==1 || !seen[$1]++'
+df -h / "$ORACLE_HOME" "$ORACLE_USER_HOME" 2>/dev/null | awk 'NR==1 || !seen[$1]++'
 echo "---- sqlplus ----"
 
 sqlplus -s / as sysdba <<'SQL'

@@ -42,7 +42,7 @@ def load_config(path: Path | None) -> dict:
         path = Path(env) if env else DEFAULT_CONFIG
     if not path.exists():
         return {"hosts": {}}
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def resolve_target(args: argparse.Namespace) -> dict:
@@ -76,7 +76,6 @@ def resolve_target(args: argparse.Namespace) -> dict:
     target.setdefault("ssh_user", "root")
     target.setdefault("oracle_user", "oracle")
     target.setdefault("ssh_port", 22)
-    target.setdefault("backup_root", "/home/oracle/backup/full")
     return target
 
 
@@ -223,12 +222,16 @@ def upload_template(
     job_dir = job_dir or remote_job_dir()
     remote_script = f"{job_dir}/{name}"
     sftp_write(client, remote_script, src.read_bytes())
+    env_sh = REMOTE_TEMPLATES / "oracle_env.sh"
+    if env_sh.exists():
+        sftp_write(client, f"{job_dir}/oracle_env.sh", env_sh.read_bytes())
     exports = "\n".join(
         f"export {k}={sh_quote(v)}" for k, v in env.items() if v is not None and str(v) != ""
     )
     wrapper = f"""#!/bin/bash
 set -euo pipefail
 {exports}
+. {job_dir}/oracle_env.sh
 bash {remote_script}
 """
     remote_wrap = f"{job_dir}/run.sh"
@@ -238,10 +241,16 @@ bash {remote_script}
 
 def oracle_env(target: dict, extra: dict | None = None) -> dict[str, str]:
     env = {}
+    role = target_role(target)
+    if role in ("source", "backup"):
+        env["ORA_SSH_ROLE"] = role
+    env["ORACLE_OS_USER"] = str(target.get("oracle_user") or "oracle")
     if target.get("oracle_sid"):
         env["ORACLE_SID"] = str(target["oracle_sid"])
     if target.get("oracle_home"):
         env["ORACLE_HOME"] = str(target["oracle_home"])
+    if target.get("backup_root"):
+        env["BACKUP_ROOT"] = str(target["backup_root"])
     if extra:
         env.update({k: str(v) for k, v in extra.items() if v is not None})
     return env
@@ -265,8 +274,6 @@ def cmd_init_config(args: argparse.Namespace) -> int:
                 "ssh_user": "root",
                 "ssh_pass_file": str(Path.home() / "ssh.pass"),
                 "oracle_sid": "orcl",
-                "oracle_home": "/u01/app/oracle/product/19.0.0/dbhome_1",
-                "backup_root": "/home/oracle/backup/full",
             },
             "backup-database": {
                 "host": "db-backup.example.com",
@@ -274,8 +281,6 @@ def cmd_init_config(args: argparse.Namespace) -> int:
                 "ssh_user": "root",
                 "ssh_pass_file": str(Path.home() / "ssh.pass"),
                 "oracle_sid": "orcl",
-                "oracle_home": "/u01/app/oracle/product/19.0.0/dbhome_1",
-                "backup_root": "/home/oracle/backup/from_source",
             },
         }
     }
@@ -322,9 +327,9 @@ def cmd_sql_or_rman(args: argparse.Namespace, kind: str) -> int:
         remote_in = f"{job_dir}/stmt.sql"
         script = f"""#!/bin/bash
 set -euo pipefail
-{"export ORACLE_SID=" + target["oracle_sid"] if target.get("oracle_sid") else ""}
-{"export ORACLE_HOME=" + target["oracle_home"] if target.get("oracle_home") else ""}
-{"export PATH=$ORACLE_HOME/bin:$PATH" if target.get("oracle_home") else ""}
+{"export ORACLE_SID=" + sh_quote(target["oracle_sid"]) if target.get("oracle_sid") else ""}
+{"export ORACLE_HOME=" + sh_quote(target["oracle_home"]) if target.get("oracle_home") else ""}
+. {job_dir}/oracle_env.sh
 sqlplus -s / as sysdba @{remote_in}
 """
         if not body.upper().rstrip().endswith("EXIT") and "EXIT;" not in body.upper():
@@ -333,9 +338,9 @@ sqlplus -s / as sysdba @{remote_in}
         remote_in = f"{job_dir}/stmt.rman"
         script = f"""#!/bin/bash
 set -euo pipefail
-{"export ORACLE_SID=" + target["oracle_sid"] if target.get("oracle_sid") else ""}
-{"export ORACLE_HOME=" + target["oracle_home"] if target.get("oracle_home") else ""}
-{"export PATH=$ORACLE_HOME/bin:$PATH" if target.get("oracle_home") else ""}
+{"export ORACLE_SID=" + sh_quote(target["oracle_sid"]) if target.get("oracle_sid") else ""}
+{"export ORACLE_HOME=" + sh_quote(target["oracle_home"]) if target.get("oracle_home") else ""}
+. {job_dir}/oracle_env.sh
 rman target / @{remote_in}
 """
         if "EXIT" not in body.upper():
@@ -343,6 +348,8 @@ rman target / @{remote_in}
     client = connect(target)
     try:
         sftp_write(client, remote_in, body)
+        env_sh = REMOTE_TEMPLATES / "oracle_env.sh"
+        sftp_write(client, f"{job_dir}/oracle_env.sh", env_sh.read_bytes())
         wrap = f"{job_dir}/run.sh"
         sftp_write(client, wrap, script)
         rc, out, err = run(
@@ -397,17 +404,18 @@ def run_wipe(client, target: dict, args: argparse.Namespace, allow_not_open: boo
     date_tag = time.strftime("%Y%m%d_%H%M%S")
     owners = getattr(args, "owners", None) or ""
     extra = {
-        "LOG_DIR": getattr(args, "log_dir", None) or "/home/oracle/scripts/logs",
         "DATE_TAG": date_tag,
         "OWNERS": owners,
         "ALLOW_NOT_OPEN": "1" if allow_not_open else "0",
     }
+    if getattr(args, "log_dir", None):
+        extra["LOG_DIR"] = args.log_dir
     _job, wrap = upload_template(client, "wipe_user_tables.sh", oracle_env(target, extra))
     timeout = int(getattr(args, "wipe_timeout", 0) or 0) or max(int(args.timeout), 1800)
     print(f"WIPE_HOST={target['host']}")
     print(f"WIPE_SID={target.get('oracle_sid', '')}")
     print(f"WIPE_OWNERS={owners or 'ALL_USER'}")
-    print(f"WIPE_LOG={extra['LOG_DIR']}/ora_ssh_wipe_{date_tag}.log")
+    print(f"WIPE_LOG=~oracle/scripts/logs/ora_ssh_wipe_{date_tag}.log")
     rc, out, err = run(
         client,
         wrap_as_oracle(target, f"bash {wrap}"),
@@ -423,31 +431,30 @@ def run_wipe(client, target: dict, args: argparse.Namespace, allow_not_open: boo
 def cmd_backup(args: argparse.Namespace) -> int:
     target = resolve_target(args)
     date_tag = time.strftime("%Y%m%d_%H%M%S")
-    backup_root = target.get("backup_root") or "/home/oracle/backup/full"
+    role = target_role(target)
+    backup_rel = "backup/from_source" if role == "backup" else "backup/full"
+    extra: dict[str, str] = {
+        "DATE_TAG": date_tag,
+        "COPY_ARCH": "0" if getattr(args, "no_arch", False) else "1",
+    }
+    if args.log_dir:
+        extra["LOG_DIR"] = args.log_dir
     if args.type in ("rman-l0", "rman-l1"):
-        extra = {
-            "BACKUP_ROOT": backup_root,
-            "LEVEL": "0" if args.type == "rman-l0" else "1",
-            "DATE_TAG": date_tag,
-            "COPY_ARCH": "0" if args.no_arch else "1",
-            "LOG_DIR": args.log_dir or "/home/oracle/scripts/logs",
-        }
+        extra["LEVEL"] = "0" if args.type == "rman-l0" else "1"
         template = "backup_rman.sh"
-        log = f"{extra['LOG_DIR']}/ora_ssh_l{extra['LEVEL']}_{date_tag}.log"
-        backup_dir = f"{backup_root}/{date_tag}"
+        log = f"~oracle/scripts/logs/ora_ssh_l{extra['LEVEL']}_{date_tag}.log"
+        backup_dir = f"~oracle/{backup_rel}/{date_tag}"
     else:
-        extra = {
-            "BACKUP_ROOT": backup_root,
-            "DATE_TAG": date_tag,
-            "SCHEMAS": args.schemas or "",
-            "FULL": "1" if args.full else "0",
-            "LOG_DIR": args.log_dir or "/home/oracle/scripts/logs",
-        }
+        extra["SCHEMAS"] = args.schemas or ""
+        extra["FULL"] = "1" if args.full else "0"
+        extra.pop("COPY_ARCH", None)
         template = "backup_dp.sh"
-        log = f"{extra['LOG_DIR']}/ora_ssh_dp_{date_tag}.log"
-        backup_dir = f"{backup_root}/datapump/{date_tag}"
+        log = f"~oracle/scripts/logs/ora_ssh_dp_{date_tag}.log"
+        backup_dir = f"~oracle/{backup_rel}/datapump/{date_tag}"
         if not args.full and not args.schemas:
             die("datapump needs --schemas SCOTT,HR or --full")
+    if getattr(args, "backup_root", None) or target.get("backup_root"):
+        extra["BACKUP_ROOT"] = str(getattr(args, "backup_root", None) or target.get("backup_root"))
     client = connect(target)
     try:
         job_dir, wrap = upload_template(client, template, oracle_env(target, extra))
@@ -488,9 +495,10 @@ def cmd_restore(args: argparse.Namespace) -> int:
         )
     date_tag = time.strftime("%Y%m%d_%H%M%S")
     extra: dict[str, str] = {
-        "LOG_DIR": args.log_dir or "/home/oracle/scripts/logs",
         "DATE_TAG": date_tag,
     }
+    if args.log_dir:
+        extra["LOG_DIR"] = args.log_dir
     if args.type == "rman":
         if not args.backup_dir:
             die("rman restore needs --backup-dir")
@@ -553,7 +561,7 @@ def cmd_restore(args: argparse.Namespace) -> int:
         rc, out, err = start_job(
             client, target, job_dir, wrap, args.timeout, args.foreground, args.pty
         )
-        log = f"{extra['LOG_DIR']}/ora_ssh_{'restore' if args.type == 'rman' else 'impdp'}_{date_tag}.log"
+        log = f"~oracle/scripts/logs/ora_ssh_{'restore' if args.type == 'rman' else 'impdp'}_{date_tag}.log"
         print(f"HOST={target['host']}")
         print(f"JOB_DIR={job_dir}")
         print(f"LOG={log}")

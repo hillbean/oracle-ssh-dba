@@ -3,16 +3,12 @@
 # Never run against the source/production database.
 set -euo pipefail
 
-: "${ORACLE_SID:?}"
-: "${ORACLE_HOME:?}"
+. "$(dirname "$0")/oracle_env.sh"
 OWNERS="${OWNERS:-}"
 ALLOW_NOT_OPEN="${ALLOW_NOT_OPEN:-0}"
 OWNERS_SQL=$(printf '%s' "$OWNERS" | tr 'a-z' 'A-Z' | sed "s/'/''/g")
 
-export ORACLE_SID ORACLE_HOME
-export PATH="$ORACLE_HOME/bin:$PATH"
-
-LOG_DIR="${LOG_DIR:-/home/oracle/scripts/logs}"
+LOG_DIR="${LOG_DIR}"
 DATE_TAG="${DATE_TAG:-$(date +%Y%m%d_%H%M%S)}"
 mkdir -p "$LOG_DIR"
 LOG_FILE="${LOG_DIR}/ora_ssh_wipe_${DATE_TAG}.log"
