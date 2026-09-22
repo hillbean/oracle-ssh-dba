@@ -1,6 +1,6 @@
 # oracle-ssh-dba
 
-Cursor Agent Skill：通过 SSH 登录 Linux 上的 Oracle，查询数据库型号/版本，并用 RMAN 或 Data Pump 做备份与还原。
+ Agent Skill：通过 SSH 登录 Linux 上的 Oracle，查询数据库型号/版本，并用 RMAN 或 Data Pump 做备份与还原。
 
 本机不必安装 Oracle 客户端。默认路径是 **Windows 工作机 → SSH → `su - oracle` → sqlplus / RMAN**。
 
@@ -22,32 +22,32 @@ Agent 使用说明见 [SKILL.md](SKILL.md)。细节：
 - [references/restore.md](references/restore.md) — 还原与清表
 - [references/connections.md](references/connections.md) — 连接配置
 
-## 安装到 Cursor
+## 安装到到技能库
 
-把本仓库放到 Cursor 的 skills 目录后**新开一个对话**才会加载。
+把本仓库放到~/.agents/的 skills 目录后**新开一个对话**才会加载。
 
 Windows:
 
 ```powershell
-git clone https://github.com/hillbean/oracle-ssh-dba.git $env:USERPROFILE\.cursor\skills\oracle-ssh-dba
-pip install -r $env:USERPROFILE\.cursor\skills\oracle-ssh-dba\scripts\requirements.txt
+git clone https://github.com/hillbean/oracle-ssh-dba.git $env:USERPROFILE\.agents\skills\oracle-ssh-dba
+pip install -r $env:USERPROFILE\.agents\skills\oracle-ssh-dba\scripts\requirements.txt
 ```
 
 macOS / Linux:
 
 ```bash
-git clone https://github.com/hillbean/oracle-ssh-dba.git ~/.cursor/skills/oracle-ssh-dba
-pip install -r ~/.cursor/skills/oracle-ssh-dba/scripts/requirements.txt
+git clone https://github.com/hillbean/oracle-ssh-dba.git ~/.agents/skills/oracle-ssh-dba
+pip install -r ~/.agents/skills/oracle-ssh-dba/scripts/requirements.txt
 ```
 
 依赖：Python 3、`paramiko`。本机可以没有 sqlplus。
 
 ## 配置连接
 
-密码只放本机文件或环境变量，**不要提交到 Git**。
+密码只放本机文件或环境变量。
 
 ```powershell
-python $env:USERPROFILE\.cursor\skills\oracle-ssh-dba\scripts\ora_ssh.py init-config
+python $env:USERPROFILE\.agents\skills\oracle-ssh-dba\scripts\ora_ssh.py init-config
 ```
 
 然后编辑 `%USERPROFILE%\.oracle-ssh-dba\connections.json`，把示例改成真实主机。模板见 [connections.example.json](connections.example.json)。
@@ -92,7 +92,7 @@ your-ssh-password
 参数写在子命令后面。入口脚本：`scripts/ora_ssh.py`。
 
 ```powershell
-$py = "$env:USERPROFILE\.cursor\skills\oracle-ssh-dba\scripts\ora_ssh.py"
+$py = "$env:USERPROFILE\.agents\skills\oracle-ssh-dba\scripts\ora_ssh.py"
 
 python $py inspect --profile source-database
 python $py backup --profile source-database --type rman-l0
@@ -117,7 +117,7 @@ python $py inspect --host db-source.example.com --user root --pass-file C:\Users
 | `sqlplus` / `rman` / `exec` / `oracle` | 临时 SQL、RMAN、远程命令 |
 | `poll` | 看远程备份/还原日志 |
 
-在 Cursor 对话里也可以直接说：「查源库型号」「给源库打 L0」「把备份还原到备份库（先出计划）」。
+Agent对话里也可以直接说：「查源库型号」「给源库打 L0」「把备份还原到备份库（先出计划）」。
 
 ## 安全
 
